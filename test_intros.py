@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+import re
 from unittest.mock import patch as mock
 
 import install
@@ -106,6 +107,18 @@ class InstallerTests(unittest.TestCase):
         self.apply(uninstall=True)
         self.assertEqual(self.weather.read_bytes(), self.original)
 
+    def test_upgrade_preserves_verified_v1_backup(self):
+        legacy_modules = tuple(n for n in install.MODULES if n != "bandicuss_intro_layout.py")
+        with mock.object(install, "VERSION", "1.0.0"), mock.object(install, "MODULES", legacy_modules):
+            first = self.apply()
+        self.assertEqual(self.apply(check=True)["version"], "1.0.0")
+        with self.assertRaisesRegex(ValueError, "Older add-on"):
+            self.apply()
+        self.apply(uninstall=True)
+        self.assertEqual(self.weather.read_bytes(), self.original)
+        self.assertEqual(self.apply()["version"], "1.0.1")
+        self.assertEqual(Path(first["backup"]).read_bytes(), self.original)
+
     def test_hooks_keep_weather_routing(self):
         self.apply()
         scope = {"refresh": lambda station: calls.append(station)}
@@ -153,6 +166,52 @@ class SettingsTests(unittest.TestCase):
             settings.settings_menu()
             preview.assert_called_once_with()
         self.assertEqual(settings.load_style(), "pixel")
+
+
+class LayoutTests(unittest.TestCase):
+    def test_proportional_centered_fit(self):
+        from bandicuss_intro_layout import fit_canvas
+        for columns, rows in [(79, 24), (80, 24), (98, 30), (132, 35), (158, 40), (200, 60)]:
+            for height, captions, pixel in [(22, 2, False), (40, 4, True)]:
+                left, top, width, target_height = fit_canvas(columns, rows, 78, height, captions, pixel)
+                used_rows = target_height // (2 if pixel else 1) + captions
+                self.assertGreaterEqual(left, 0)
+                self.assertGreaterEqual(top, 0)
+                self.assertLess(left + width, columns)
+                self.assertLessEqual(top + used_rows, rows)
+                self.assertLessEqual(abs(left - (columns - left - width)), 1)
+                self.assertLessEqual(abs(top - (rows - top - used_rows)), 1)
+                self.assertLess(abs(width / 78 - target_height / height), .06)
+                if columns == 158:
+                    self.assertGreater(width, 120)
+                    self.assertGreaterEqual(used_rows, 37)
+
+    def test_frames_do_not_wrap_or_scroll(self):
+        import bandicuss_ascii
+        import bandicuss_intro
+        escape = re.compile(r'\x1b\[([0-9;]*)([A-Za-z])')
+        for module in (bandicuss_ascii, bandicuss_intro):
+            for columns, rows in [(79, 24), (98, 30), (158, 40), (200, 60)]:
+                for t in (0, 2, 4, 6):
+                    data, scene = module.frame_at(t)
+                    frame = module.ansi_frame(data, scene, columns, rows)
+                    x = y = 0
+                    i = 0
+                    while i < len(frame):
+                        match = escape.match(frame, i)
+                        if match:
+                            if match[2] == 'H':
+                                y, x = (int(v) - 1 for v in match[1].split(';'))
+                            i = match.end()
+                            continue
+                        self.assertGreaterEqual(x, 0)
+                        self.assertLess(x, columns - 1)
+                        self.assertGreaterEqual(y, 0)
+                        self.assertLess(y, rows)
+                        if module is bandicuss_ascii:
+                            self.assertTrue(32 <= ord(frame[i]) <= 126)
+                        x += 1
+                        i += 1
 
 
 if __name__ == "__main__":

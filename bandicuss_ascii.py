@@ -1,4 +1,4 @@
-"""Colored ASCII weather intro prototype. Printable ASCII artwork, no blocks."""
+"""Colored ASCII weather intro. Printable ASCII artwork, no blocks."""
 import math
 WIDTH, HEIGHT, FPS, DURATION = 78, 24, 16, 8.0
 SCENES = ('FIRST LIGHT', 'STORM FRONT', 'SNOWFALL', 'AFTER DARK')
@@ -103,15 +103,20 @@ def frame_at(seconds):
     return scene_frame(scene,seconds-scene*2),scene
 
 
-def ansi_frame(pixels,scene,columns=80):
-    margin=' '*max(0,(columns-WIDTH)//2);lines=['\x1b[H'];previous=None
-    for y in range(HEIGHT):
-        lines.append(margin)
-        for x in range(WIDTH):
-            i=(y*WIDTH+x)*2;char,c=pixels[i:i+2]
+def ansi_frame(pixels,scene,columns=80,rows=24):
+    from bandicuss_intro_layout import fit_canvas,resample,position,caption
+    left,top,width,height=fit_canvas(columns,rows,WIDTH,22,captions=2)
+    art=resample(pixels[:WIDTH*22*2],WIDTH,22,width,height,stride=2)
+    lines=[]
+    for y in range(height):
+        lines.append(position(left,top+y));previous=None
+        for x in range(width):
+            i=(y*width+x)*2;char,c=art[i:i+2]
             if c!=previous:lines.append('\x1b[38;2;%d;%d;%dm'%PALETTE[c]);previous=c
             lines.append(chr(char))
-        lines.append('\x1b[0m\x1b[K'+('\r\n' if y<HEIGHT-1 else ''));previous=None
+        lines.append('\x1b[0m\x1b[K')
+    lines.append(caption('W E A T H E R   C E N T E R',columns,top+height,(166,195,206)))
+    lines.append(caption('ANY KEY TO CONTINUE',columns,top+height+1))
     return ''.join(lines)
 
 
@@ -124,14 +129,16 @@ def play_intro(duration=DURATION):
     duration=max(.5,min(15,float(duration)));fd=sys.stdin.fileno();previous=termios.tcgetattr(fd)
     try:
         tty.setcbreak(fd);sys.stdout.write('\x1b[?1049h\x1b[?25l\x1b[2J');sys.stdout.flush()
-        start=time.monotonic()
+        start=time.monotonic();last_size=None
         while True:
             frame_start=time.monotonic();elapsed=frame_start-start
             if elapsed>=duration:break
             cols,rows=shutil.get_terminal_size()
             if cols<WIDTH+1 or rows<HEIGHT:break
+            if (cols,rows)!=last_size:
+                sys.stdout.write('\x1b[2J');last_size=(cols,rows)
             pixels,scene=frame_at(elapsed/duration*DURATION)
-            sys.stdout.write(ansi_frame(pixels,scene,cols));sys.stdout.flush()
+            sys.stdout.write(ansi_frame(pixels,scene,cols,rows));sys.stdout.flush()
             if select.select([sys.stdin],[],[],max(0,1/FPS-(time.monotonic()-frame_start)))[0]:os.read(fd,1);termios.tcflush(fd,termios.TCIFLUSH);break
     finally:
         try:

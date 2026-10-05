@@ -164,22 +164,25 @@ def frame_at(seconds):
     return scene_frame(scene,seconds-scene*2),scene
 
 
-def ansi_frame(pixels, scene, columns=80):
-    """Unicode half-block pixels; every two pixel rows use one terminal row."""
-    left=' '*max(0,(columns-WIDTH)//2)
-    chunks=['\x1b[H',left+'\x1b[0m\x1b[38;2;146;172;190m'+'B A N D I C U S S   /   W E A T H E R'.center(WIDTH)+'\x1b[K\r\n']
-    for y in range(0,HEIGHT,2):
-        chunks.append(left);last=None
-        for x in range(WIDTH):
-            pair=(pixels[y*WIDTH+x],pixels[(y+1)*WIDTH+x])
+def ansi_frame(pixels,scene,columns=80,rows=24):
+    """Scale original pixels to fit, keeping captions at the terminal font size."""
+    from bandicuss_intro_layout import fit_canvas,resample,position,caption
+    left,top,width,height=fit_canvas(columns,rows,WIDTH,HEIGHT,captions=4,pixel=True)
+    art=resample(pixels,WIDTH,HEIGHT,width,height)
+    chunks=[caption('B A N D I C U S S   /   W E A T H E R',columns,top)]
+    for y in range(0,height,2):
+        chunks.append(position(left,top+1+y//2));last=None
+        for x in range(width):
+            pair=(art[y*width+x],art[(y+1)*width+x])
             if pair!=last:
                 a,b=(PALETTE[i] for i in pair)
                 chunks.append('\x1b[38;2;%d;%d;%d;48;2;%d;%d;%dm'%(*a,*b));last=pair
             chunks.append('▀')
-        chunks.append('\x1b[0m\x1b[K\r\n')
-    chunks.append(left+'\x1b[38;2;167;213;215m'+'W E A T H E R   C E N T E R'.center(WIDTH)+'\x1b[0m\x1b[K\r\n')
-    chunks.append(left+'\x1b[38;2;146;172;190m'+(SCENES[scene]+'   /   '+str(scene+1)+' OF 4').center(WIDTH)+'\x1b[0m\x1b[K\r\n')
-    chunks.append(left+'\x1b[38;2;146;172;190m'+'ANY KEY TO CONTINUE'.center(WIDTH)+'\x1b[0m\x1b[K')
+        chunks.append('\x1b[0m\x1b[K')
+    bottom=top+1+height//2
+    chunks.append(caption('W E A T H E R   C E N T E R',columns,bottom,(167,213,215)))
+    chunks.append(caption(SCENES[scene]+'   /   '+str(scene+1)+' OF 4',columns,bottom+1))
+    chunks.append(caption('ANY KEY TO CONTINUE',columns,bottom+2))
     return ''.join(chunks)
 
 
@@ -201,15 +204,17 @@ def play_intro(duration=DURATION):
     try:
         tty.setcbreak(fd)
         sys.stdout.write('\x1b[?1049h\x1b[?25l\x1b[2J');sys.stdout.flush()
-        start=time.monotonic()
+        start=time.monotonic();last_size=None
         while True:
             frame_started=time.monotonic()
             elapsed=frame_started-start
             if elapsed>=duration:break
             cols,rows=shutil.get_terminal_size()
             if cols<WIDTH+1 or rows<24:break
+            if (cols,rows)!=last_size:
+                sys.stdout.write('\x1b[2J');last_size=(cols,rows)
             pixels,scene=frame_at(elapsed/duration*DURATION)
-            sys.stdout.write(ansi_frame(pixels,scene,cols));sys.stdout.flush()
+            sys.stdout.write(ansi_frame(pixels,scene,cols,rows));sys.stdout.flush()
             wait=max(0,1/FPS-(time.monotonic()-frame_started))
             if select.select([sys.stdin],[],[],wait)[0]:
                 os.read(fd,1);termios.tcflush(fd,termios.TCIFLUSH);break

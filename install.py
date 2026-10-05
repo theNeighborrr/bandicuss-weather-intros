@@ -11,8 +11,8 @@ import stat
 import sys
 import tempfile
 
-VERSION = "1.0.0"
-MODULES = ("bandicuss_ascii.py", "bandicuss_intro.py", "bandicuss_intro_settings.py")
+VERSION = "1.0.1"
+MODULES = ("bandicuss_ascii.py", "bandicuss_intro.py", "bandicuss_intro_settings.py", "bandicuss_intro_layout.py")
 MARKER = "BANDICUSS-INTROS"
 HOOKS = {
     "startup_animation": (
@@ -111,10 +111,13 @@ def inspect(weather, package):
         safe_path(weather.parent / name)
     if receipt_path.exists():
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        if receipt.get("version") != VERSION or receipt.get("weather") != str(weather):
+        if receipt.get("version") not in (VERSION, "1.0.0") or receipt.get("weather") != str(weather):
             raise ValueError("Receipt belongs to a different version/path; preserve and reconcile")
         expected = receipt["installed"]
-        if set(expected) != {weather.name, *MODULES}:
+        names = {weather.name, *MODULES}
+        if receipt["version"] == "1.0.0":
+            names.discard("bandicuss_intro_layout.py")
+        if set(expected) != names:
             raise ValueError("Invalid receipt file list")
         for name, digest in expected.items():
             path = weather.parent / name
@@ -144,18 +147,23 @@ def install(weather, package, check=False, uninstall=False):
         raise ValueError("Select the weather application, not an add-on module")
     state, receipt = inspect(weather, package)
     if check:
-        return {"status": "installed" if receipt else "compatible", "version": VERSION, "weather": str(weather)}
+        return {"status": "installed" if receipt else "compatible",
+                "version": receipt["version"] if receipt else VERSION,
+                "package_version": VERSION, "weather": str(weather)}
     if uninstall:
         if not receipt:
             return {"status": "not installed"}
         # Validate every owned file before restoring anything. Keep backups/preferences.
         original = (state / receipt["backup"]).read_bytes()
         atomic(weather, original, receipt["mode"])
-        for name in MODULES:
-            (weather.parent / name).unlink()
+        for name in receipt["installed"]:
+            if name != weather.name:
+                (weather.parent / name).unlink()
         (state / "receipt.json").unlink()
         return {"status": "restored", "sha256": sha(original), "backup": str(state / receipt["backup"])}
     if receipt:
+        if receipt["version"] != VERSION:
+            raise ValueError("Older add-on installed. Run this installer's --uninstall first; preferences are retained")
         if any(sha((package / name).read_bytes()) != receipt["installed"][name] for name in MODULES):
             raise ValueError("Package differs from installed add-on; uninstall the old package before updating")
         return {"status": "already installed", "version": VERSION}

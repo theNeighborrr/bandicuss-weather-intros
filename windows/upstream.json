@@ -1,0 +1,12 @@
+{
+  "repository": "bandicuss/bandicuss-weather",
+  "commit": "5a0fe47ad74b41e1627ab8a138cb3d105ffbac4a",
+  "files": {
+    "weather.py": "1330d9222bf980148ee74f1bc4d08d7763a30c88f9d0886fb29f178d483753cb",
+    "bandicuss_intro.py": "0ca9e7408ad6d771b975f92278c10c2daf5a79047dc56a4e3e546d0071060a2f",
+    "bandicuss_intro_layout.py": "f4fdbd21a2096ab2f3a885d28d4d9a26353b25e39c0a5ccbd7d30d4eeac3c18a",
+    "bandicuss_horizon.py": "7962aef3753bfbb78dc7465d7df1d1e4aae287ab2c6a148914049c65657e80b2",
+    "bandicuss_acquisition.py": "9b9498d40fc6b23845305aa1ebeec36f260e8204e61d40b4c3eb0b833fa7364a",
+    "LICENSE-intros": "a9689af04c87d0bafff9c2dcd07f535d7b714081f94f62de6b5a9eea24b13181"
+  }
+}

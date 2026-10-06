@@ -1,5 +1,7 @@
 # Installing this add-on for someone
 
+- For an explicitly requested new native Windows installation, follow WINDOWS.md and windows/setup_windows.py instead of the existing-app Linux workflow below. Use a separate destination, pinned upstream/hash verification and a private Python environment. Preserve any existing destination or shortcut. Do not run the upstream Linux installer or change the uConsole to install Windows support.
+
 - Read README.md and inspect the actual existing Bandicuss application and working shortcut. Do not assume a source checkout is the launched copy.
 - This is an add-on for an existing app. Do not reinstall Bandicuss, replace weather.py wholesale, change weather products, install global dependencies or alter launchers to add an intro.
 - Close the app before installation. Run install.py --check with the appropriate --weather path. Use the installer only after compatibility passes; it creates a verified backup and receipt.

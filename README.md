@@ -1,5 +1,7 @@
 # Bandicuss Weather Intros
 
+**Windows PC:** see [the native Windows setup](WINDOWS.md) for a separate Bandicuss v4.1 installation with both intros, Horizon and links opened in your default browser. The Linux add-on workflow below remains unchanged.
+
 Two animated terminal intros for an **existing Bandicuss Weather v4 or v4.1** installation, plus a saved **Intro settings** menu. No new Python dependencies, internet connection, sudo, or background service is needed for the intros.
 
 - **ASCII** (default): colored character-art sunrise, storm, snow and aurora scenes.

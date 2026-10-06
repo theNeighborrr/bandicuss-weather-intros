@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guarded, reversible add-on installer for an existing Bandicuss Weather v4."""
+"""Guarded, reversible settings/intro add-on for Bandicuss Weather v4 and v4.1."""
 import argparse
 import ast
 from datetime import datetime, timezone
@@ -11,7 +11,7 @@ import stat
 import sys
 import tempfile
 
-VERSION = "1.0.1"
+VERSION = "1.1.0"
 MODULES = ("bandicuss_ascii.py", "bandicuss_intro.py", "bandicuss_intro_settings.py", "bandicuss_intro_layout.py")
 MARKER = "BANDICUSS-INTROS"
 HOOKS = {
@@ -52,6 +52,29 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def profile_for(data):
+    funcs = [n for n in ast.parse(data.decode("utf-8")).body
+             if isinstance(n, ast.FunctionDef) and n.name == "startup_animation"]
+    if len(funcs) != 1:
+        raise ValueError("Unsupported startup function")
+    doc = ast.get_docstring(funcs[0])
+    if doc == "Short animated Bandicuss Weather boot screen.":
+        return "v4"
+    if doc == "Play the optional Pixel intro before station selection.":
+        return "v4.1"
+    raise ValueError("Unsupported startup structure; preserve and reconcile")
+
+
+def managed_modules(profile):
+    if profile == "v4":
+        return MODULES
+    if profile == "v4.1":
+        # Pixel/layout are upstream runtime dependencies, also used by Horizon.
+        # This add-on must never overwrite or remove them.
+        return ("bandicuss_ascii.py", "bandicuss_intro_settings.py")
+    raise ValueError("Unknown weather profile")
+
+
 def safe_path(path):
     if any(p.is_symlink() for p in (path, *path.parents)):
         raise ValueError("Refusing symlink path: " + str(path))
@@ -73,6 +96,7 @@ def atomic(path, data, mode=0o644):
 
 
 def patch(data):
+    profile = profile_for(data)
     text = data.decode("utf-8")
     if MARKER in text:
         raise ValueError("Existing intro hooks without a valid receipt; preserve and reconcile")
@@ -83,6 +107,8 @@ def patch(data):
     lines = normal.splitlines(keepends=True)
     edits = []
     for name, (anchor, hook, placement) in HOOKS.items():
+        if name == "startup_animation" and profile == "v4.1":
+            anchor = '    """Play the optional Pixel intro before station selection."""\n'
         node = funcs.get(name)
         if node is None:
             raise ValueError("Unsupported weather app: missing " + name)
@@ -111,10 +137,13 @@ def inspect(weather, package):
         safe_path(weather.parent / name)
     if receipt_path.exists():
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        if receipt.get("version") not in (VERSION, "1.0.0") or receipt.get("weather") != str(weather):
+        if receipt.get("version") not in (VERSION, "1.0.0", "1.0.1") or receipt.get("weather") != str(weather):
             raise ValueError("Receipt belongs to a different version/path; preserve and reconcile")
         expected = receipt["installed"]
-        names = {weather.name, *MODULES}
+        profile = receipt.get("profile", "v4")
+        if receipt["version"] != VERSION and profile != "v4":
+            raise ValueError("Invalid legacy receipt profile")
+        names = {weather.name, *managed_modules(profile)}
         if receipt["version"] == "1.0.0":
             names.discard("bandicuss_intro_layout.py")
         if set(expected) != names:
@@ -130,12 +159,22 @@ def inspect(weather, package):
         safe_path(backup)
         if sha(backup.read_bytes()) != receipt["original_sha256"]:
             raise ValueError("Backup verification failed")
+        if profile_for(backup.read_bytes()) != profile:
+            raise ValueError("Backup does not match receipt profile")
         return state, receipt
-    for name in MODULES:
+    profile = profile_for(weather.read_bytes())
+    owned = managed_modules(profile)
+    if profile == "v4.1":
+        for name in ("bandicuss_intro.py", "bandicuss_intro_layout.py"):
+            native = weather.parent / name
+            if not native.is_file():
+                raise ValueError("Incomplete v4.1 installation: missing upstream " + name)
+            ast.parse(native.read_text(encoding="utf-8"))
+    for name in owned:
         if (weather.parent / name).exists():
             raise ValueError("Existing add-on file without receipt; preserve: " + name)
     patch(weather.read_bytes())
-    for name in MODULES:
+    for name in owned:
         ast.parse((package / name).read_text(encoding="utf-8"))
     return state, None
 
@@ -149,7 +188,8 @@ def install(weather, package, check=False, uninstall=False):
     if check:
         return {"status": "installed" if receipt else "compatible",
                 "version": receipt["version"] if receipt else VERSION,
-                "package_version": VERSION, "weather": str(weather)}
+                "package_version": VERSION, "weather": str(weather),
+                "profile": receipt.get("profile", "v4") if receipt else profile_for(weather.read_bytes())}
     if uninstall:
         if not receipt:
             return {"status": "not installed"}
@@ -164,13 +204,15 @@ def install(weather, package, check=False, uninstall=False):
     if receipt:
         if receipt["version"] != VERSION:
             raise ValueError("Older add-on installed. Run this installer's --uninstall first; preferences are retained")
-        if any(sha((package / name).read_bytes()) != receipt["installed"][name] for name in MODULES):
+        if any(sha((package / name).read_bytes()) != receipt["installed"][name]
+               for name in managed_modules(receipt.get("profile", "v4"))):
             raise ValueError("Package differs from installed add-on; uninstall the old package before updating")
         return {"status": "already installed", "version": VERSION}
     original = weather.read_bytes()
+    profile = profile_for(original)
     patched = patch(original)
     mode = stat.S_IMODE(weather.stat().st_mode)
-    payload = {name: (package / name).read_bytes() for name in MODULES}
+    payload = {name: (package / name).read_bytes() for name in managed_modules(profile)}
     payload[weather.name] = patched
     state.mkdir(mode=0o700, exist_ok=True)
     backup = state / ("weather-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ") + ".py.bak")
@@ -179,7 +221,7 @@ def install(weather, package, check=False, uninstall=False):
     os.chmod(backup, 0o600)
     if backup.read_bytes() != original or weather.read_bytes() != original:
         raise ValueError("Backup/source changed; stopped before installation")
-    receipt = {"version": VERSION, "weather": str(weather), "backup": backup.name,
+    receipt = {"version": VERSION, "profile": profile, "weather": str(weather), "backup": backup.name,
                "original_sha256": sha(original), "mode": mode,
                "installed": {name: sha(data) for name, data in payload.items()}}
     written = []

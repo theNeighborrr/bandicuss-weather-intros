@@ -1,12 +1,12 @@
 # Bandicuss Weather Intros
 
-Two animated terminal intros for an **existing Bandicuss Weather v4** installation, plus a saved **Intro settings** menu. No new Python dependencies, internet connection, sudo, or background service is needed for the intros.
+Two animated terminal intros for an **existing Bandicuss Weather v4 or v4.1** installation, plus a saved **Intro settings** menu. No new Python dependencies, internet connection, sudo, or background service is needed for the intros.
 
 - **ASCII** (default): colored character-art sunrise, storm, snow and aurora scenes.
 - **Pixel**: the original colorful landscape design, using Unicode half-block pixels.
 - **Off**: go straight to station selection.
 
-Both automatically scale to fit and center within the terminal, preserving proportions and keeping captions at the current font size. They reflow when the window is resized. Both play for eight seconds. Any key skips. In the weather app's main menu, press **I** for Intro settings, **1 / 2 / 3** to save a choice, **P** to preview, and **B** to return. Preferences survive restarts.
+Both automatically scale to fit and center within the terminal, preserving proportions and keeping captions at the current font size. They reflow when the window is resized. Both play for eight seconds. Any key skips. In the weather app's main menu, press **I** for Intro settings, **1 / 2 / 3** to save a choice, **P** to preview, and **B** to return. Preferences survive restarts. These choices control startup only. Upstream v4.1 Horizon Observatory still animates while real weather requests run; `BANDICUSS_NO_ANIMATION=1` or `NO_COLOR` disables both startup and acquisition animations.
 
 ## Give this to your AI
 
@@ -20,7 +20,7 @@ The public repository contains only the original add-on, installer and tests. It
 
 ## Install
 
-Close Bandicuss first. Download and extract [the v1.0.1 package](https://github.com/theNeighborrr/bandicuss-weather-intros/releases/tag/v1.0.1), or clone this repository, then open a terminal in its folder:
+Close Bandicuss first. Download and extract [the v1.1.0 package](https://github.com/theNeighborrr/bandicuss-weather-intros/releases/tag/v1.1.0), or clone this repository, then open a terminal in its folder:
 
 ```sh
 /usr/bin/python3 install.py --check
@@ -34,9 +34,9 @@ The default target is `~/.local/share/bandicuss-weather/weather.py`. If your lau
 /usr/bin/python3 install.py --weather /path/to/weather.py
 ```
 
-Reopen your usual shortcut. Select your station, then press **I** in the main menu. The installer adds three narrow hooks and four adjacent Python modules. It leaves the original startup code in place as an import fallback. Weather retrieval and product controls retain their existing code.
+Reopen your usual shortcut. Select your station, then press **I** in the main menu. The installer adds three narrow hooks. On v4 it installs four Python modules. On v4.1 it adds only ASCII and the settings module, using the upstream Pixel renderer and layout helper already present. It never overwrites or removes those v4.1 runtime dependencies, which Horizon Observatory also needs. It leaves the original startup code in place as an import fallback. Weather retrieval and product controls retain their existing code.
 
-Compatibility is checked against the v4 function/anchor structure, tested with upstream revision `395c38a32d4db477c1db9740c15e70cbd1d0679e`. Unrecognized versions, existing add-on conflicts, symlinks and modified installed files are refused. Do not bypass a refusal by resetting files or removing the receipt.
+Compatibility is checked against the v4 function/anchor structure, tested with upstream v4 revision `395c38a32d4db477c1db9740c15e70cbd1d0679e` and v4.1 revision `5a0fe47ad74b41e1627ab8a138cb3d105ffbac4a`. Install the complete upstream v4.1 runtime first, including Pixel, layout, acquisition and Horizon modules; copying only weather.py is insufficient. Unrecognized versions, existing add-on conflicts, symlinks and modified installed files are refused. Do not bypass a refusal by resetting files or removing the receipt.
 
 ## Restore the original
 
@@ -48,7 +48,7 @@ From this package folder:
 
 Use `--weather` again if you selected a custom path. The installer checks every owned file and the backup before restoring the original weather file byte for byte. Backups remain in `.bandicuss-intros/` beside `weather.py`. Your intro preference is retained. If you have edited the app since installation, uninstall refuses to overwrite your work; reconcile those changes first.
 
-To update from add-on 1.0.0, use this new installer with `--check`, then `--uninstall`, then run it without flags. It recognizes the verified 1.0.0 receipt, preserves your saved style and original backup, and refuses drift. Keep the app closed throughout.
+To update from add-on 1.0.0 or 1.0.1, use this new installer with `--check`, then `--uninstall`, then run it without flags. It recognizes the verified older receipt, preserves your saved style and original backup, and refuses drift. Keep the app closed throughout.
 
 An upstream update may overwrite the hooks. Uninstall this add-on **before** updating Bandicuss, then check compatibility again. There is no automatic update mechanism. Repeating the same installation is safe and reports `already installed`.
 
@@ -75,6 +75,6 @@ The [original colorful browser visualization](https://github.com/theNeighborrr/b
 /usr/bin/python3 -B -m unittest -v test_intros.py
 ```
 
-Fourteen tests cover installation, idempotence, rollback, failed-write recovery, conflicts, drift, newline preservation, settings, menu routing, the 1.0.0 upgrade path and proportional layouts without wrapping or scrolling. Additional checks on a uConsole CM4 exercised the actual v4 menu using stubbed weather data, exact backup restoration, and both renderers in pseudo-terminals (completion, space/arrow skip, Ctrl+C, shrinking and valid-size reflow). At the measured 158 × 40 terminal size, the artwork fills roughly 80–84% of the width and nearly all available height, including captions. The fixed-size 1.0.0 intro was user-confirmed working; its sizing issue was visible in device photos. These automated checks do not substitute for viewing the result on your own screen.
+Sixteen tests cover installation, idempotence, rollback, failed-write recovery, conflicts, drift, newline preservation, settings, menu routing, legacy upgrade/restore paths, v4.1 native-module preservation and proportional layouts without wrapping or scrolling. Additional checks on a uConsole CM4 exercised the actual v4 menu using stubbed weather data, exact backup restoration, and both renderers in pseudo-terminals (completion, space/arrow skip, Ctrl+C, shrinking and valid-size reflow). At the measured 158 × 40 terminal size, the artwork fills roughly 80–84% of the width and nearly all available height, including captions. The fixed-size 1.0.0 intro was user-confirmed working; its sizing issue was visible in device photos. All 27 upstream v4.1 tests passed before and after adding the settings hooks, plus a live KMEM METAR/TAF/alerts check. The owner confirmed the fitted 1.0.1 intros on the actual device. These automated checks do not substitute for viewing the result on your own screen.
 
 Bandicuss Weather and its identity belong to [the upstream project](https://github.com/bandicuss/bandicuss-weather). This is a separate add-on, not an official upstream release. The MIT license covers this repository's original add-on code and documentation, not the upstream weather app or third-party browser wrapper/libraries in the separate artwork download.

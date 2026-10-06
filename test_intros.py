@@ -116,8 +116,35 @@ class InstallerTests(unittest.TestCase):
             self.apply()
         self.apply(uninstall=True)
         self.assertEqual(self.weather.read_bytes(), self.original)
-        self.assertEqual(self.apply()["version"], "1.0.1")
+        self.assertEqual(self.apply()["version"], install.VERSION)
         self.assertEqual(Path(first["backup"]).read_bytes(), self.original)
+
+    def test_v41_keeps_native_pixel_and_layout_on_install_and_restore(self):
+        self.original = self.original.replace(
+            b'Short animated Bandicuss Weather boot screen.',
+            b'Play the optional Pixel intro before station selection.')
+        self.weather.write_bytes(self.original)
+        native = {"bandicuss_intro.py": b'def play_intro(): pass\n',
+                  "bandicuss_intro_layout.py": b'# upstream layout\n'}
+        for name, data in native.items():
+            (self.folder / name).write_bytes(data)
+        self.assertEqual(self.apply(check=True)["profile"], "v4.1")
+        self.apply()
+        self.assertEqual(self.apply()["status"], "already installed")
+        receipt = json.loads((self.folder / '.bandicuss-intros/receipt.json').read_text())
+        self.assertEqual(set(receipt['installed']), {'weather.py', 'bandicuss_ascii.py', 'bandicuss_intro_settings.py'})
+        self.apply(uninstall=True)
+        self.assertEqual(self.weather.read_bytes(), self.original)
+        for name, data in native.items():
+            self.assertEqual((self.folder / name).read_bytes(), data)
+
+    def test_v41_missing_native_module_refuses_without_writes(self):
+        self.weather.write_bytes(self.original.replace(
+            b'Short animated Bandicuss Weather boot screen.',
+            b'Play the optional Pixel intro before station selection.'))
+        with self.assertRaisesRegex(ValueError, "Incomplete v4.1"):
+            self.apply()
+        self.assertEqual(list(self.folder.iterdir()), [self.weather])
 
     def test_hooks_keep_weather_routing(self):
         self.apply()

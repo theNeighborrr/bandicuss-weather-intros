@@ -1,6 +1,6 @@
 # Bandicuss Weather Intros
 
-**Windows PC:** see [the native Windows setup](WINDOWS.md) for a separate Bandicuss v4.1 installation with both intros, Horizon and links opened in your default browser. The Linux add-on workflow below remains unchanged.
+**Windows PC — one-click:** [Download the Windows x64 ZIP](https://github.com/theNeighborrr/bandicuss-weather-intros/releases/download/windows-portable-v1.0.0/Bandicuss-Weather-Windows-x64.zip), choose **Extract All**, then double-click **START BANDICUSS.cmd**. Python is included; first launch automatically downloads the reviewed weather app. See [Windows instructions](WINDOWS.md). The Linux add-on workflow below remains unchanged.
 
 Two animated terminal intros for an **existing Bandicuss Weather v4 or v4.1** installation, plus a saved **Intro settings** menu. No new Python dependencies, internet connection, sudo, or background service is needed for the intros.
 

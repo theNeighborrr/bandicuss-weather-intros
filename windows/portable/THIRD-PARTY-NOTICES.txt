@@ -1,0 +1,29 @@
+Bandicuss Windows portable package 1.0.0
+
+Original add-on and Windows host: Copyright (c) 2026 theNeighborrr, MIT.
+The complete license is in LICENSE-add-on.txt.
+
+CPython 3.14.8, Windows x64 embedded distribution:
+https://www.python.org/downloads/release/python-3148/
+Python Software Foundation License and included third-party notices:
+runtime/LICENSE.txt, retained from the official distribution.
+The runtime DLLs and standard library are unchanged. python314._pth is
+configured to load the bundled display libraries without system packages.
+
+Rich 15.0.0: https://pypi.org/project/rich/15.0.0/ — MIT
+markdown-it-py 4.0.0: https://pypi.org/project/markdown-it-py/4.0.0/ — MIT
+mdurl 0.1.2: https://pypi.org/project/mdurl/0.1.2/ — MIT
+Pygments 2.19.2: https://pypi.org/project/Pygments/2.19.2/ — BSD-2-Clause
+Their complete licenses, copyright notices and package metadata are retained
+in packages/*dist-info/. The release includes the unmodified wheel contents.
+
+The upstream Bandicuss application is not redistributed in this ZIP. The
+first launch retrieves its six runtime/license files directly from the author
+at the reviewed commit recorded in support/upstream.json, checks every hash,
+and adds the intro/settings hooks locally. Native intro attribution and
+LICENSE-intros are retained. The user's downloaded original weather.py is
+retained in data/installation/original/. Our MIT license does not relicense
+the upstream weather application.
+
+No private settings, footage, photographs, credentials or local installations
+are included. This ZIP is built from an explicit source/dependency allowlist.
